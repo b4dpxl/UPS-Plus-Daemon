@@ -2,6 +2,8 @@ Deamonised version of the `uplsplus.py` script from <https://github.com/geeekpi/
 
 Run `pip3 install -r requirements.txt` for the dependencies.
 
+Copy `config.sample` to `config.cfg` and edit as appropriate.
+
 copy `ups-poweroff` to `/lib/systemd/system-shutdown/` and `chmod +x`
 
 Create the service with:
