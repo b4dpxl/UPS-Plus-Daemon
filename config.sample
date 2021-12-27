@@ -1,0 +1,23 @@
+[UPS]
+# Define I2C bus
+DEVICE_BUS = 1
+# Define device i2c slave address.
+DEVICE_ADDR = 0x17
+# Set the threshold of UPS automatic power-off to prevent damage caused by battery over-discharge, unit: mV.
+PROTECT_VOLT = 3400
+# Power off at X mV above PROTECT_VOLT
+POWER_OFF = 200
+# Set the sample period in seconds
+SAMPLE_PERIOD = 60
+## How many seconds after initiating shutdown before turning off the UPS - allow time for a clean shutdown
+
+## Comment out the following if you don't want to report to MQTT
+[MQTT]
+SERVER    = 127.0.0.1
+CLIENT_ID = longshot_ups
+PORT      = 1883
+USER      = username
+PASS      = password
+
+TOPIC     = upsplus/battery
+

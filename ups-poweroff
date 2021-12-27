@@ -1,0 +1,7 @@
+#! /bin/bash
+
+if [ "x$1" == "xpoweroff" ] || [ "x$1" == "xhalt" ] ; then
+    # power off the UPS in 5 seconds
+    /usr/sbin/i2cset -y 1 0x17 24 5
+fi
+
