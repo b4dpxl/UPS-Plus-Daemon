@@ -1,0 +1,4 @@
+paho_mqtt
+pi_ina219
+smbus2
+termcolor
