@@ -88,11 +88,11 @@ class UPSThread(Thread):
     def __init__(self):
         Thread.__init__(self)
         # Instance INA219 and getting information from it.
-        self.ina_supply = INA219(0.00725, address=0x40)
+        self.ina_supply = INA219(0.00725, address=0x40, busnum=DEVICE_BUS)
         self.ina_supply.configure()
 
         # Batteries information
-        self.ina_batt = INA219(0.005, address=0x45)
+        self.ina_batt = INA219(0.005, address=0x45, busnum=DEVICE_BUS)
         self.ina_batt.configure()
 
         # Raspberry Pi Communicates with MCU via i2c protocol.
