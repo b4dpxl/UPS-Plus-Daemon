@@ -175,7 +175,8 @@ class UPSThread(Thread):
 #                    mode = "Unknown"
 
                 self.__batt_current = self.ina_batt.current()
-                charging = not self.__batt_current < -500  # this is a guess. When at full capacity the current is sometimes below zero
+                _debug((self.ina_supply.current(), self.__batt_current, self.ina_supply.current() + self.__batt_current))
+                charging = self.ina_supply.current() + self.__batt_current > 0  # charging if current - discharge > 0
 
                 # print info every 10 minutes, if the battery voltage changes, or if the charging state changes
                 if time.time() - self.__last_print_info_time > (60 * 10) or not self.__batt_voltage == round(batt_voltage, 1) or not self.__charging_state == charging:
