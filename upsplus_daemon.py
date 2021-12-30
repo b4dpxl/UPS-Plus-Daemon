@@ -118,7 +118,7 @@ class UPSThread(Thread):
         self.bus.write_byte_data(DEVICE_ADDR, 18, (PROTECT_VOLT >> 8)& 0xFF)
         _ok("Set protection voltage to {}mV\n    Will power off at {}mV".format(PROTECT_VOLT, PROTECT_VOLT + POWER_OFF))
 
-    def _is_charging(self) -> Tuple[bool, str]:
+    def _is_charging(self) -> Tuple[bool, str]:  # this doesn't seem to work, it's showing Micro USB regardless of anything else
         aReceiveBuf = []
         aReceiveBuf.append(0x00)
 
@@ -162,27 +162,39 @@ class UPSThread(Thread):
             if batt_voltage == 0:
                 _error("Bad battery voltage: {}".format(batt_voltage))
             else:
-                charging, mode = self._is_charging()
 
+#                try:
+#                    _debug(self._is_charging())
+#                    charging, mode = self._is_charging()
+#                    charging = not self.ina_supply.current() > 0  # assuming charging if current > 0
+#                    _debug(self.ina_supply.current())
+#
+#                except OSError as e:
+#                    _error("Unable to read charging state from I2C: {}".format(e))
+#                    charging = self.ina_supply.current() > 0  # assuming charging if current > 0
+#                    mode = "Unknown"
+
+                self.__batt_current = self.ina_batt.current()
+                charging = not self.__batt_current < -500  # this is a guess. When at full capacity the current is sometimes below zero
+
+                # print info every 10 minutes, if the battery voltage changes, or if the charging state changes
                 if time.time() - self.__last_print_info_time > (60 * 10) or not self.__batt_voltage == round(batt_voltage, 1) or not self.__charging_state == charging:
                     self.__last_print_info_time = time.time()
                     self.__batt_voltage = round(batt_voltage, 1)
                     self.__charging_state = charging
-                    self.__batt_current = self.ina_batt.current()
                     self._print_info()
-
+   
                 if charging:
-                    _debug("Charging on " + mode)
-                    self.__low_voltage_notified = False
+#                    _debug("Charging on " + mode)
+                    self.__low_voltage_notified = False  # charging so reset any warnings
                     return
 
                 if (batt_voltage * 1000) < (PROTECT_VOLT + POWER_OFF):
                     _error("""Battery below  power off voltage ({:.2f}), shutting down!!""".format(batt_voltage))
-                    #_error("""Battery below  power off voltage ({:.2f}), shutting down!!
-#    UPS will shutdown in {} seconds""".format(batt_voltage, UPS_POWER_OFF))
 
                     # power off UPS in `UPS_POWER_OFF` seconds
                     # Not needed if using a script in /lib/systemd/system-shutdown/ups-poweroff
+                    #_error("""Battery below  power off voltage ({:.2f}), shutting down!! UPS will shutdown in {} seconds""".format(batt_voltage, UPS_POWER_OFF))
                     # self.bus.write_byte_data(DEVICE_ADDR, 24, UPS_POWER_OFF)
 
                     os.system("sudo sync && sudo halt")
@@ -196,6 +208,9 @@ class UPSThread(Thread):
 
         except ValueError:
             _error("Bad battery voltage: {}".format(batt_voltage))
+
+        except OSError as e:
+            _error("Unable to read i2c: {}".format(e))
 
     def _print_info(self):
         _info(time.asctime())

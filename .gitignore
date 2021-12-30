@@ -1,3 +1,4 @@
 *.cfg
 _old/
 *.20*
+*_test.py
