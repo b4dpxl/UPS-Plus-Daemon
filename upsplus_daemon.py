@@ -256,20 +256,22 @@ class MQTT:
     actual = 0
     away = False
     reconnect = False
+    connected = False
 
     def __init__(self):
         self.client = mqtt.Client(config['MQTT']['CLIENT_ID'])
-
-    def connect(self):
         self.client.username_pw_set(config['MQTT']['USER'], config['MQTT']['PASS'])
         self.client.on_connect = self._on_connect
         self.client.on_message = self._on_message
         self.client.on_disconnect = self._on_disconnect
+
+    def connect(self):
         _info("Connecting to MQTT")
         for i in range(10):
             try:
                 self.client.connect(config['MQTT']['SERVER'], port=config.getint('MQTT', 'PORT'))
                 self.client.loop_start()
+                self.connected = True
                 # connected OK
                 return
 #            except KeyboardInterrupt:
@@ -286,6 +288,8 @@ class MQTT:
         self.client.disconnect()
 
     def publish(self, topic, payload, retain=True):
+        if not self.connected:
+            self.connect()
         self.client.publish(topic, payload, retain=retain)
         _debug("Published {} to {}".format(payload, topic))
 
@@ -306,6 +310,8 @@ class MQTT:
     def _on_disconnect(self, client, userdata, rc):
         if rc != 0:
             warn("Unexpected disconnect. Will reconnect")
+            self.client.loop_stop()
+            self.connected = False
 
     def _on_message(self, client, userdata, message):
         _debug("Message received")
