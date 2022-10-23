@@ -54,7 +54,8 @@ def _debug(s):
 
 # MQTT
 try:
-    import paho.mqtt.client as mqtt
+    # import paho.mqtt.client as mqtt
+    import paho.mqtt.publish as publish
     HAS_MQTT = True
 except:
     _debug("Paho MQTT not available")
@@ -83,7 +84,6 @@ if HAS_MQTT:
 class UPSThread(Thread):
 
     _running = True
-    _mqtt = None
 
     def __init__(self):
         Thread.__init__(self)
@@ -101,10 +101,6 @@ class UPSThread(Thread):
         self._setup_mcu()
 
         _info("Checking every {} seconds".format(SAMPLE_PERIOD))
-
-        if HAS_MQTT:
-            self._mqtt = MQTT()
-            self._mqtt.connect()
 
     def _setup_mcu(self) -> None:
         # Enable Back-to-AC function.
@@ -145,9 +141,6 @@ class UPSThread(Thread):
 
     def stop(self):
         self._running = False
-
-        if self._mqtt:
-            self._mqtt.stop()
 
     __last_print_info_time = 0
     __batt_voltage = 0
@@ -228,7 +221,7 @@ class UPSThread(Thread):
                         
         if HAS_MQTT:
             _info("Sending to MQTT")
-            self._mqtt.publish(
+            publish.single(
                 config['MQTT']['TOPIC'],
                 json.dumps({
                     "charging": self.__charging_state,
@@ -237,11 +230,16 @@ class UPSThread(Thread):
                     "current": round(self.__batt_current, 2),
                     "percent": int((self.__batt_voltage * 100 - 320))
                 }),
-                retain=False
+                hostname=config['MQTT']['SERVER'],
+                port=config.getint('MQTT', 'PORT'),
+                client_id=config['MQTT']['CLIENT_ID'],
+                auth={'username': config['MQTT']['USER'], 'password': config['MQTT']['PASS']},
+                keepalive=5
             )
 
 
 t = None
+
 
 def die(code=0):
     print("Shutting down")
@@ -249,76 +247,6 @@ def die(code=0):
         t.stop()
     sys.exit(code)
 
-
-class MQTT:
-    state = ""
-    target = 0
-    actual = 0
-    away = False
-    reconnect = False
-    connected = False
-
-    def __init__(self):
-        self.client = mqtt.Client(config['MQTT']['CLIENT_ID'])
-        self.client.username_pw_set(config['MQTT']['USER'], config['MQTT']['PASS'])
-        self.client.on_connect = self._on_connect
-        self.client.on_message = self._on_message
-        self.client.on_disconnect = self._on_disconnect
-
-    def connect(self):
-        _info("Connecting to MQTT")
-        for i in range(10):
-            try:
-                self.client.connect(config['MQTT']['SERVER'], port=config.getint('MQTT', 'PORT'))
-                self.client.loop_start()
-                self.connected = True
-                # connected OK
-                return
-#            except KeyboardInterrupt:
-#                die()
-            except Exception as ex:
-                _error("Can't connect because:\n {}".format(ex))
-                w = 30 * (i + 1)
-                _error("Waiting {} seconds to retry".format(w))
-                time.sleep(w)
-
-#            die(1)
-
-    def disconnect(self):
-        self.client.disconnect()
-
-    def publish(self, topic, payload, retain=True):
-        if not self.connected:
-            self.connect()
-        self.client.publish(topic, payload, retain=retain)
-        _debug("Published {} to {}".format(payload, topic))
-
-    def _on_connect(self, client, userdata, flags, rc):
-        _debug("Connection returned code={}".format(rc))
-        if rc == 0:
-            if self.reconnect:
-                _info("Reconnected to MQTT")
-            else:
-                _info("Connected to MQTT")
-
-            if not self.reconnect:
-                self.reconnect = True
-
-        else:
-            _error("Bad connection Returned code={}".format(rc))
-
-    def _on_disconnect(self, client, userdata, rc):
-        if rc != 0:
-            warn("Unexpected disconnect. Will reconnect")
-            self.client.loop_stop()
-            self.connected = False
-
-    def _on_message(self, client, userdata, message):
-        _debug("Message received")
-        _debug("{}: {}".format(message.topic, message.payload))
-
-    def stop(self):
-        self.client.loop_stop()
 
 
 t = UPSThread()
@@ -330,6 +258,7 @@ def main():
             time.sleep(1)
     except KeyboardInterrupt:
         die(0)
+
 
 main()
 
